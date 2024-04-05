@@ -606,6 +606,25 @@ app.post("/donate/:causeId", async (req, res) => {
   }
 });
 */
+
+app.get("/display/:causeId", async (req, res) => {
+  const causeId = req.params.causeId;
+  try {
+    const donors = await DonorModel.find({ causeId: causeId }).select(
+      "-causeId"
+    );
+    if (donors.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Donors not found for this cause ID" });
+    }
+    res.json(donors);
+  } catch (err) {
+    console.error("Error fetching donors", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(3001, () => {
   console.log("Server is running");
 });
