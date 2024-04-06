@@ -11,6 +11,7 @@ const { secretKey } = require("./config");
 const LoginModel = require("./model/login");
 const DonorModel = require("./model/donor");
 const CauseAmountModel = require("./model/amount");
+const AdminModel = require("./model/admin");
 app.use(express.json());
 app.use(cors());
 
@@ -89,6 +90,29 @@ app.post("/login", async (req, res) => {
     const user = await LoginModel.findOne({ email });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+    // Compare passwords
+    if (password !== user.password) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+    // If login is successful, generate JWT token
+    const token = jwt.sign({ userId: user._id }, secretKey, {
+      expiresIn: "1h",
+    });
+    // Return token and user name
+    res.json({ token, name: user.name });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.post("/loginadmin", async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    // Find user by email
+    const user = await AdminModel.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ error: "Admin not found" });
     }
     // Compare passwords
     if (password !== user.password) {
