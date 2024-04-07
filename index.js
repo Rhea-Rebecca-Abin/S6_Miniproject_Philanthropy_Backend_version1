@@ -12,6 +12,7 @@ const LoginModel = require("./model/login");
 const DonorModel = require("./model/donor");
 const CauseAmountModel = require("./model/amount");
 const AdminModel = require("./model/admin");
+
 app.use(express.json());
 app.use(cors());
 
