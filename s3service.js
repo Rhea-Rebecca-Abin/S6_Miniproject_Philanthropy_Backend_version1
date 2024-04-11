@@ -2,12 +2,12 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { v4: uuid } = require("uuid");
 // Function to upload files to S3
 const s3client = new S3Client({ region: process.env.AWS_REGION });
-const uploadFilesToS3 = async (files, appId, s3client) => {
+const uploadcause1FilesToS3 = async (files, appId, s3client) => {
   return Promise.all(
     files.map(async (file) => {
       const params = {
         Bucket: process.env.AWS_BUCKET_NAME,
-        Key: `cause1/${appId}/${file.originalname}`,
+        Key: `GirlChildEducation/${appId}/${file.originalname}`,
         Body: file.buffer,
       };
       try {
@@ -27,7 +27,7 @@ const uploadFilesToS3 = async (files, appId, s3client) => {
     })
   );
 };
-module.exports = { uploadFilesToS3, s3client };
+module.exports = { uploadcause1FilesToS3, s3client };
 /*exports.s3Uploadv3 = async (files, causeID, applicationId) => {
   const s3client = new S3Client({ region: process.env.AWS_REGION });
 
