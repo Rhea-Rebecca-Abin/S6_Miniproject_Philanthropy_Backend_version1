@@ -25,7 +25,8 @@ const GirlChildModel = require("./model/girlchild");
 const GirlChildFile = require("./model/girlchild_files");
 const Status = require("./model/apply_status");
 const CauseAmountModel = require("./model/amount");
-
+const DisabilityModel = require("./model/disabliliy");
+const DisabilityFile = require("./model/disability_files");
 mongoose.connect(
   "mongodb+srv://philafund:philafundsem62024@project-mernstack.xv0zhc5.mongodb.net/philanthropy"
 );
@@ -272,7 +273,7 @@ app.post(
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });*/
-
+//Display the applicants of cause 1 for Admin
 app.get("/girl-child-applicants", async (req, res) => {
   try {
     // Find application IDs with status "processing"
@@ -311,7 +312,8 @@ app.get("/girl-child-applicants", async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
-app.post("/accept/:applicationId", async (req, res) => {
+//ACCEPT Cause 1- by Admin
+app.post("/acceptgirlchild/:applicationId", async (req, res) => {
   try {
     const { applicationId } = req.params;
 
@@ -353,6 +355,7 @@ app.post("/accept/:applicationId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+//REJECT - by Admin same for both causes
 app.post("/reject/:applicationId", async (req, res) => {
   try {
     const { applicationId } = req.params;
@@ -394,7 +397,7 @@ app.get("/check-status/:applicationId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });*/
-
+//Check status for the applicant
 app.get("/check-status/:applicationId", async (req, res) => {
   try {
     const { applicationId } = req.params;
@@ -417,6 +420,7 @@ app.get("/check-status/:applicationId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+//Display the sum amount corresponding to each causeId - for Admin
 app.get("/sum-amount/:causeId", async (req, res) => {
   try {
     const { causeId } = req.params;
@@ -438,4 +442,217 @@ app.get("/sum-amount/:causeId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+//Second cause application
+app.post("/submitdisability", async (req, res) => {
+  try {
+    // Destructure required fields and nested sub-fields from request body
+    const {
+      fullName,
+      dateOfBirth,
+      contact,
+      address,
+      typeOfDisability,
+      severityOfDisability,
+      mobilityAids,
+      dailyAssistance,
+      employmentStatus,
+      annualIncome,
+      supportNeeded,
+      bankDetails,
+    } = req.body;
+
+    // Extract sub-fields from nested objects
+    const { phoneNumber, email } = contact;
+
+    // Generate application ID using uuidv4()
+    const applicationId = uuidv4();
+
+    // Save application details to MongoDB
+    const newApplication = new DisabilityModel({
+      applicationId,
+      fullName,
+      dateOfBirth,
+      contact: { phoneNumber, email },
+      address,
+      typeOfDisability,
+      severityOfDisability,
+      mobilityAids,
+      dailyAssistance,
+      employmentStatus,
+      annualIncome,
+      supportNeeded,
+      bankDetails,
+    });
+    await newApplication.save();
+
+    res
+      .status(201)
+      .json({ message: "Application submitted successfully", applicationId });
+  } catch (error) {
+    console.error("Error submitting application:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+//File upload second cause
+const { uploadcause2FilesToS3 } = require("./s3service");
+
+// Function to upload files to S3
+
+app.post(
+  "/upload-disability/:appId",
+  upload.fields([
+    { name: "idProof", maxCount: 1 },
+    { name: "medicalCertificate", maxCount: 1 },
+    { name: "medicalRecords", maxCount: 1 },
+    { name: "incomeCertificate", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const appId = req.params.appId;
+      const idProofFiles = req.files["idProof"];
+      const medicalCertificateFiles = req.files["medicalCertificate"];
+      const medicalRecordsFiles = req.files["medicalRecords"];
+      const incomeCertificateFiles = req.files["incomeCertificate"];
+
+      // Upload idProof files to S3
+      const idProofUrls = await uploadcause2FilesToS3(
+        idProofFiles,
+        appId,
+        s3client
+      );
+      console.log(idProofUrls);
+
+      // Upload medicalCertificate files to S3
+      const medicalCertificateUrls = await uploadcause2FilesToS3(
+        medicalCertificateFiles,
+        appId,
+        s3client
+      );
+      console.log(medicalCertificateUrls);
+
+      // Upload medicalRecords files to S3
+      const medicalRecordsUrls = await uploadcause2FilesToS3(
+        medicalRecordsFiles,
+        appId,
+        s3client
+      );
+      console.log(medicalRecordsUrls);
+
+      // Upload incomeCertificate files to S3
+      const incomeCertificateUrls = await uploadcause2FilesToS3(
+        incomeCertificateFiles,
+        appId,
+        s3client
+      );
+      console.log(incomeCertificateUrls);
+
+      // Save file details to MongoDB
+      const newFiles = await DisabilityFile.create({
+        applicationId: appId,
+        idProof: idProofUrls.map((file) => file.location),
+        medicalCertificate: medicalCertificateUrls.map((file) => file.location),
+        medicalRecords: medicalRecordsUrls.map((file) => file.location),
+        incomeCertificate: incomeCertificateUrls.map((file) => file.location),
+      });
+      console.log(newFiles);
+
+      const applystatus = await Status.create({
+        applicationId: appId,
+      });
+
+      if (newFiles && applystatus) {
+        res.status(200).json({
+          message: "Files uploaded and new application created successfully",
+        });
+      } else {
+        res.status(500).json({ message: "Failed to create new application" });
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+//Display details of applicants of second cause
+app.get("/disability-applicants", async (req, res) => {
+  try {
+    // Find application IDs with status "processing"
+    const processingApplications = await Status.find({ status: "processing" });
+    const applicationIds = processingApplications.map(
+      (app) => app.applicationId
+    );
+
+    // Find applicants with application IDs and populate their file URLs
+    const applicants = await DisabilityModel.find({
+      applicationId: { $in: applicationIds },
+    })
+      .select("-_id -__v") // Exclude _id and __v fields
+      .populate("contact")
+      .lean(); // Convert to plain JavaScript objects
+
+    // Populate file URLs for each applicant
+    for (const applicant of applicants) {
+      const files = await DisabilityFile.findOne({
+        applicationId: applicant.applicationId,
+      });
+      if (files) {
+        applicant.fileURLs = {
+          idProof: files.idProof,
+          medicalCertificate: files.medicalCertificate,
+          medicalRecords: files.medicalRecords,
+          incomeCertificate: files.incomeCertificate,
+        };
+      }
+    }
+
+    res.json({ success: true, data: applicants });
+  } catch (error) {
+    console.error("Error fetching disability applicants:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+//ACCEPT - Second cause by Admin
+app.post("/acceptdisability/:applicationId", async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    // Fetch the cause amount corresponding to causeId 1
+    const causeAmount = await CauseAmountModel.findOne({ causeId: "2" });
+
+    if (!causeAmount) {
+      return res.status(404).json({ message: "Cause amount not found" });
+    }
+
+    // Check if the amount is greater than or equal to 2000
+    if (causeAmount.sum >= 5000) {
+      // Update the status of the application to approved
+      await Status.findOneAndUpdate(
+        { applicationId },
+        { $set: { status: "approved" } }
+      );
+
+      // Deduct 5000 from the cause amount
+      await CauseAmountModel.findOneAndUpdate(
+        { causeId: "2" },
+        { $inc: { sum: -5000 } }
+      );
+
+      return res.status(200).json({ message: "Application approved" });
+    } else {
+      // Update the status of the application to waiting list
+      await Status.findOneAndUpdate(
+        { applicationId },
+        { $set: { status: "waiting list" } }
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Application added to waiting list" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 app.listen(1000, () => console.log("Listening on port 1000"));

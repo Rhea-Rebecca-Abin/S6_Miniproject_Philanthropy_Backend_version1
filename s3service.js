@@ -28,6 +28,32 @@ const uploadcause1FilesToS3 = async (files, appId, s3client) => {
   );
 };
 module.exports = { uploadcause1FilesToS3, s3client };
+const uploadcause2FilesToS3 = async (files, appId, s3client) => {
+  return Promise.all(
+    files.map(async (file) => {
+      const params = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: `DisabilitySupport/${appId}/${file.originalname}`,
+        Body: file.buffer,
+      };
+      try {
+        const data = await s3client.send(new PutObjectCommand(params));
+
+        console.log(`File uploaded successfully: ${data}`);
+
+        // Construct URL manually
+        const location = `https://${params.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
+        return { key: params.Key, location: location };
+
+        // return { key: params.Key, location: data.location };
+      } catch (error) {
+        console.error(`Error uploading file: ${error}`);
+        throw error;
+      }
+    })
+  );
+};
+module.exports = { uploadcause2FilesToS3, s3client };
 /*exports.s3Uploadv3 = async (files, causeID, applicationId) => {
   const s3client = new S3Client({ region: process.env.AWS_REGION });
 
