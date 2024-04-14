@@ -655,4 +655,85 @@ app.post("/acceptdisability/:applicationId", async (req, res) => {
   }
 });
 
+//Display waiting list of girl applicants
+app.get("/waitinggirl", async (req, res) => {
+  try {
+    // Find application IDs with status "waiting list"
+    const processingApplications = await Status.find({
+      status: "waiting list",
+    });
+    const applicationIds = processingApplications.map(
+      (app) => app.applicationId
+    );
+
+    // Find applicants with application IDs and populate their file URLs
+    const applicants = await GirlChildModel.find({
+      applicationId: { $in: applicationIds },
+    })
+      .select("-_id -__v") // Exclude _id and __v fields
+      .populate("contact")
+      .populate("currentEducation")
+      .populate("guardianOrParentDetails")
+      .lean(); // Convert to plain JavaScript objects
+
+    // Populate file URLs for each applicant
+    for (const applicant of applicants) {
+      const files = await GirlChildFile.findOne({
+        applicationId: applicant.applicationId,
+      });
+      if (files) {
+        applicant.fileURLs = {
+          birthCertificate: files.birthCertificate,
+          educationCertificate: files.educationCertificate,
+          incomeCertificate: files.incomeCertificate,
+        };
+      }
+    }
+
+    res.json({ success: true, data: applicants });
+  } catch (error) {
+    console.error("Error fetching girl child applicants:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+//display second cause waiting list
+app.get("/waitingdisability", async (req, res) => {
+  try {
+    // Find application IDs with status "waiting list"
+    const processingApplications = await Status.find({
+      status: "waiting list",
+    });
+    const applicationIds = processingApplications.map(
+      (app) => app.applicationId
+    );
+
+    // Find applicants with application IDs and populate their file URLs
+    const applicants = await DisabilityModel.find({
+      applicationId: { $in: applicationIds },
+    })
+      .select("-_id -__v") // Exclude _id and __v fields
+      .populate("contact")
+      .lean(); // Convert to plain JavaScript objects
+
+    // Populate file URLs for each applicant
+    for (const applicant of applicants) {
+      const files = await DisabilityFile.findOne({
+        applicationId: applicant.applicationId,
+      });
+      if (files) {
+        applicant.fileURLs = {
+          idProof: files.idProof,
+          medicalCertificate: files.medicalCertificate,
+          medicalRecords: files.medicalRecords,
+          incomeCertificate: files.incomeCertificate,
+        };
+      }
+    }
+
+    res.json({ success: true, data: applicants });
+  } catch (error) {
+    console.error("Error fetching disability applicants:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
 app.listen(1000, () => console.log("Listening on port 1000"));
